@@ -172,8 +172,8 @@ Vagrant.configure("2") do |config|
       end
 
   		# We add the ip address of alls servers to the /etc/hosts file
-  		(1..total_mumber_of_controllers).each do |i|
-  			host_line = "10.0.0.5#{i}    controller-#{i}"
+  		(1..total_mumber_of_controllers).each do |j|
+  			host_line = "10.0.0.5#{j}    controller-#{j}"
   			
         controller.vm.provision "shell" do |s|
   				s.inline = <<-SHELL
@@ -187,8 +187,8 @@ Vagrant.configure("2") do |config|
   			end
   		end
 
-  		(1..total_number_of_workers).each do |i|
-  			host_line = "10.0.0.#{i}    worker-#{i}"
+  		(1..total_number_of_workers).each do |j|
+  			host_line = "10.0.0.#{j}    worker-#{j}"
   			
         controller.vm.provision "shell" do |s|
   				s.inline = <<-SHELL
@@ -213,12 +213,30 @@ Vagrant.configure("2") do |config|
 
 
       # ETCD Installation per controller - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/07-bootstrapping-etcd.md
+      controller.vm.provision "file", source: "conf/etcd.service", destination: "~/etcd.service"
       controller.vm.provision "shell" do |s|
+        initial_cluster=''
+        (1..total_mumber_of_controllers).each do |j|
+          initial_cluster = initial_cluster + "controller-#{j}=https:\\/\\/10.0.0.5#{j}:2380,"
+        end
+        initial_cluster = initial_cluster[0..-2]
+        
+
         s.inline = <<-SHELL
           if [ ! -f ~/etcd-v3.2.11-linux-amd64.tar.gz ]; then
             wget -q --https-only --timestamping "https://github.com/coreos/etcd/releases/download/v3.2.11/etcd-v3.2.11-linux-amd64.tar.gz"
             tar -xvf etcd-v3.2.11-linux-amd64.tar.gz
             sudo mv etcd-v3.2.11-linux-amd64/etcd* /usr/local/bin/
+            sudo mkdir -p /etc/etcd /var/lib/etcd
+            sudo cp ca.pem kubernetes-key.pem kubernetes.pem /etc/etcd/
+            sed -i 's/ETCD_NAME/controller-#{i}/g' etcd.service
+            sed -i 's/INTERNAL_IP/10.0.0.5#{i}/g' etcd.service
+            echo '#{initial_cluster}'
+            sed -i 's/INITIAL_CLUSTER/#{initial_cluster}/g' etcd.service
+            sudo mv etcd.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+            sudo systemctl enable etcd
+            sudo systemctl start etcd
           fi
         SHELL
       end
@@ -244,8 +262,8 @@ Vagrant.configure("2") do |config|
   		end
 
       # We add the ip address of alls servers to the /etc/hosts file
-      (1..total_mumber_of_controllers).each do |i|
-        host_line = "10.0.0.5#{i}    controller-#{i}"
+      (1..total_mumber_of_controllers).each do |j|
+        host_line = "10.0.0.5#{j}    controller-#{j}"
         
         worker.vm.provision "shell" do |s|
           s.inline = <<-SHELL
@@ -258,8 +276,8 @@ Vagrant.configure("2") do |config|
           SHELL
         end
       end
-      (1..total_number_of_workers).each do |i|
-        host_line = "10.0.0.#{i}    worker-#{i}"
+      (1..total_number_of_workers).each do |j|
+        host_line = "10.0.0.#{j}    worker-#{j}"
         
         worker.vm.provision "shell" do |s|
           s.inline = <<-SHELL
