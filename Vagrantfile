@@ -1,5 +1,5 @@
 Vagrant.configure("2") do |config|
-  ssh_pub_key = File.readlines("C:\\cygwin64\\home\\a510804\\several-vms-vagrant\\ssh_keys\\id_ed25519.pub").first.strip
+  ssh_pub_key = File.readlines("ssh_keys/id_ed25519.pub").first.strip
 
   total_mumber_of_controllers = 2
   total_number_of_workers = 2
@@ -23,8 +23,8 @@ Vagrant.configure("2") do |config|
     # We share the shared folder
     client.vm.synced_folder "shared/", "/home/vagrant/shared"
 
-    client.vm.provision "file", source: "ssh_keys\\id_ed25519.pub", destination: "~/keys/id_ed25519.pub"
-    client.vm.provision "file", source: "ssh_keys\\id_ed25519", destination: "~/keys/id_ed25519"
+    client.vm.provision "file", source: "ssh_keys/id_ed25519.pub", destination: "~/keys/id_ed25519.pub"
+    client.vm.provision "file", source: "ssh_keys/id_ed25519", destination: "~/keys/id_ed25519"
     client.vm.provision "shell" do |s|
       s.inline = <<-SHELL
         echo "Copying common private and public key"
@@ -59,9 +59,9 @@ Vagrant.configure("2") do |config|
     end
 
     # Provisioning a CA and Generating TLS Certificates - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-    client.vm.provision "file", source: "certs\\ca-config.json", destination: "~/ca-config.json"
-    client.vm.provision "file", source: "certs\\ca-csr.json", destination: "~/ca-csr.json"
-    client.vm.provision "file", source: "certs\\admin-csr.json", destination: "~/admin-csr.json"
+    client.vm.provision "file", source: "certs/ca-config.json", destination: "~/ca-config.json"
+    client.vm.provision "file", source: "certs/ca-csr.json", destination: "~/ca-csr.json"
+    client.vm.provision "file", source: "certs/admin-csr.json", destination: "~/admin-csr.json"
     client.vm.provision "shell" do |s|
       s.inline = <<-SHELL
         if [ ! -f /home/vagrant/shared/ca.pem ]; then
@@ -77,7 +77,7 @@ Vagrant.configure("2") do |config|
     end
 
     # We provision the worker certificates - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-    client.vm.provision "file", source: "certs\\worker-csr.json", destination: "~/worker-csr.json"
+    client.vm.provision "file", source: "certs/worker-csr.json", destination: "~/worker-csr.json"
     (1..total_number_of_workers).each do |i|
         
       client.vm.provision "shell" do |s|
@@ -95,7 +95,7 @@ Vagrant.configure("2") do |config|
     end
 
     # We provision the kube-proxy certificate - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-    client.vm.provision "file", source: "certs\\kube-proxy-csr.json", destination: "~/kube-proxy-csr.json"
+    client.vm.provision "file", source: "certs/kube-proxy-csr.json", destination: "~/kube-proxy-csr.json"
     client.vm.provision "shell" do |s|
       s.inline = <<-SHELL
         echo "Configuring worker certificate file for kube-proxy"
@@ -108,7 +108,7 @@ Vagrant.configure("2") do |config|
     end
 
     # We create the API certificates - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-    client.vm.provision "file", source: "certs\\kubernetes-csr.json", destination: "~/kubernetes-csr.json"
+    client.vm.provision "file", source: "certs/kubernetes-csr.json", destination: "~/kubernetes-csr.json"
     client.vm.provision "shell" do |s|
       s.inline = <<-SHELL
         echo "Configuring API certificate files"
@@ -203,13 +203,13 @@ Vagrant.configure("2") do |config|
   		end
 
       # We copy the necessary certificates - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-      controller.vm.provision "file", source: "shared\\ca.pem", destination: "~/ca.pem"
-      controller.vm.provision "file", source: "shared\\ca-key.pem", destination: "~/ca-key.pem"
-      controller.vm.provision "file", source: "shared\\kubernetes-key.pem", destination: "~/kubernetes-key.pem"
-      controller.vm.provision "file", source: "shared\\kubernetes.pem", destination: "~/kubernetes.pem"
+      controller.vm.provision "file", source: "shared/ca.pem", destination: "~/ca.pem"
+      controller.vm.provision "file", source: "shared/ca-key.pem", destination: "~/ca-key.pem"
+      controller.vm.provision "file", source: "shared/kubernetes-key.pem", destination: "~/kubernetes-key.pem"
+      controller.vm.provision "file", source: "shared/kubernetes.pem", destination: "~/kubernetes.pem"
 
       # Generating the Data Encryption Config and Key - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/06-data-encryption-keys.md
-      client.vm.provision "file", source: "conf\\encryption-config.yaml", destination: "~/encryption-config.yaml"
+      controller.vm.provision "file", source: "conf/encryption-config.yaml", destination: "~/encryption-config.yaml"
 
 
       # ETCD Installation per controller - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/07-bootstrapping-etcd.md
@@ -274,13 +274,13 @@ Vagrant.configure("2") do |config|
       end
 
       # We copy the necessary certificates - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/04-certificate-authority.md
-      worker.vm.provision "file", source: "shared\\ca.pem", destination: "~/ca.pem"
-      worker.vm.provision "file", source: "shared\\worker-#{i}-key.pem", destination: "~/worker-#{i}-key.pem"
-      worker.vm.provision "file", source: "shared\\worker-#{i}.pem", destination: "~/worker-#{i}.pem"
+      worker.vm.provision "file", source: "shared/ca.pem", destination: "~/ca.pem"
+      worker.vm.provision "file", source: "shared/worker-#{i}-key.pem", destination: "~/worker-#{i}-key.pem"
+      worker.vm.provision "file", source: "shared/worker-#{i}.pem", destination: "~/worker-#{i}.pem"
 
       # We copy the configuration files - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/05-kubernetes-configuration-files.md
-      worker.vm.provision "file", source: "shared\\worker-#{i}.kubeconfig", destination: "~/worker-#{i}.kubeconfig"
-      worker.vm.provision "file", source: "shared\\kube-proxy.kubeconfig", destination: "~/kube-proxy.kubeconfig"
+      worker.vm.provision "file", source: "shared/worker-#{i}.kubeconfig", destination: "~/worker-#{i}.kubeconfig"
+      worker.vm.provision "file", source: "shared/kube-proxy.kubeconfig", destination: "~/kube-proxy.kubeconfig"
   	end
 
   end
