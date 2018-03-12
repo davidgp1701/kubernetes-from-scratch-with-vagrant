@@ -32,7 +32,7 @@ total_mumber_of_controllers = 2
 total_number_of_workers = 2
 ```
 
-The schema is the following one. A client/load balance machine is going to be created with ip address: 10.0.0.100. Then several controllers, to a maximum of 9, controller-1 will have ip address 10.0.0.51, controller-2 will have ip address 10.0.0.52, and so on. Finally, a maximum of 49 worker nodes can be created, worker-1 will have ip address 10.0.0.1, worker-2 will have ip address 10.0.0.2 and so on.
+The schema is the following one. A client/load balance machine is going to be created with ip address: 10.0.0.200. Then several controllers, to a maximum of 9, controller-1 will have ip address 10.0.0.51, controller-2 will have ip address 10.0.0.52, and so on. Finally, a maximum of 49 worker nodes can be created, worker-1 will have ip address 10.0.0.101, worker-2 will have ip address 10.0.0.102 and so on.
 
 You can ssh to any of this VMs using the hostname, for example:
 

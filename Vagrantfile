@@ -12,7 +12,7 @@ Vagrant.configure("2") do |config|
   # We remove the extra ,
   controllers_ips = controllers_ips[1..-1]
 
-  public_ip_kubernetes_address = '10.0.0.100'
+  public_ip_kubernetes_address = '10.0.0.200'
 
   # This machine will have the function of client and load balancer
   config.vm.define "client" do |client|
@@ -86,7 +86,7 @@ Vagrant.configure("2") do |config|
           if [ ! -f /home/vagrant/shared/worker-#{i}-key.pem ]; then
             cp worker-csr.json worker-#{i}-csr.json
             sed -i 's/INSTANCE/worker-#{i}/g' worker-#{i}-csr.json
-            cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=worker-#{i},10.0.0.#{i} -profile=kubernetes worker-#{i}-csr.json | cfssljson -bare worker-#{i}
+            cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=worker-#{i},10.0.0.1#{i} -profile=kubernetes worker-#{i}-csr.json | cfssljson -bare worker-#{i}
             cp worker-#{i}-key.pem shared
             cp worker-#{i}.pem shared
           fi
@@ -188,7 +188,7 @@ Vagrant.configure("2") do |config|
   		end
 
   		(1..total_number_of_workers).each do |j|
-  			host_line = "10.0.0.#{j}    worker-#{j}"
+  			host_line = "10.0.0.1#{j}    worker-#{j}"
   			
         controller.vm.provision "shell" do |s|
   				s.inline = <<-SHELL
@@ -223,7 +223,7 @@ Vagrant.configure("2") do |config|
         
 
         s.inline = <<-SHELL
-          if [ ! -f ~/etcd-v3.2.11-linux-amd64.tar.gz ]; then
+          if [ ! -f /etc/systemd/system/etcd.service ]; then
             wget -q --https-only --timestamping "https://github.com/coreos/etcd/releases/download/v3.2.11/etcd-v3.2.11-linux-amd64.tar.gz"
             tar -xvf etcd-v3.2.11-linux-amd64.tar.gz
             sudo mv etcd-v3.2.11-linux-amd64/etcd* /usr/local/bin/
@@ -240,6 +240,20 @@ Vagrant.configure("2") do |config|
           fi
         SHELL
       end
+
+      # Bootstrapping the Kubernetes Control Plane - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/08-bootstrapping-kubernetes-controllers.md
+      # First we download the binaries and prepare the certs to the right folder
+      controller.vm.provision "shell" do |s|      
+        s.inline = <<-SHELL
+          if [ ! -f /usr/local/bin/kubectl ]; then
+            wget -q --https-only --timestamping "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-apiserver" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-controller-manager" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-scheduler" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kubectl"
+            chmod +x kube-apiserver kube-controller-manager kube-scheduler kubectl
+            sudo mv kube-apiserver kube-controller-manager kube-scheduler kubectl /usr/local/bin/
+            sudo mkdir -p /var/lib/kubernetes/
+            sudo mv ca.pem ca-key.pem kubernetes-key.pem kubernetes.pem encryption-config.yaml /var/lib/kubernetes/
+          fi
+        SHELL
+      end
     end
   end
 
@@ -247,7 +261,7 @@ Vagrant.configure("2") do |config|
   	config.vm.define "worker-#{i}" do |worker|
     	worker.vm.box = "ubuntu/xenial64"
     	worker.vm.hostname = "server#{i}"
-    	worker.vm.network "private_network", ip: "10.0.0.#{i}"
+    	worker.vm.network "private_network", ip: "10.0.0.1#{i}"
 
       # We add the key so the client node can access master and worker nodoes
     	worker.vm.provision "shell" do |s|
@@ -277,7 +291,7 @@ Vagrant.configure("2") do |config|
         end
       end
       (1..total_number_of_workers).each do |j|
-        host_line = "10.0.0.#{j}    worker-#{j}"
+        host_line = "10.0.0.1#{j}    worker-#{j}"
         
         worker.vm.provision "shell" do |s|
           s.inline = <<-SHELL
