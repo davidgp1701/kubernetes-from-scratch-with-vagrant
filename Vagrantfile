@@ -150,6 +150,30 @@ Vagrant.configure("2") do |config|
         SHELL
     end
 
+    # Configuring HAProxy for Load Balancing the Controllers
+    client.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          apt-get update
+          apt-get install -y haproxy
+        SHELL
+    end
+
+    client.vm.provision "file", source: "conf/haproxy.cfg", destination: "~/haproxy.cfg"
+    (1..total_mumber_of_controllers).each do |j|
+      client.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo '  server controller-#{j} 10.0.0.5#{j}:6443 check inter 1000' >> haproxy.cfg
+        SHELL
+      end
+    end    
+
+    client.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          sudo cp haproxy.cfg /etc/haproxy/haproxy.cfg
+          systemctl restart haproxy
+        SHELL
+    end
+
   end
 
   # For the moment this only supports 1 master node... it needs to be extended to support several master nodes behind a proxy server
@@ -245,6 +269,7 @@ Vagrant.configure("2") do |config|
       # First we download the binaries and prepare the certs to the right folder
       controller.vm.provision "shell" do |s|      
         s.inline = <<-SHELL
+          echo 'Downloading Kubernate Control Plane Binaries'
           if [ ! -f /usr/local/bin/kubectl ]; then
             wget -q --https-only --timestamping "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-apiserver" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-controller-manager" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-scheduler" "https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kubectl"
             chmod +x kube-apiserver kube-controller-manager kube-scheduler kubectl
@@ -267,6 +292,7 @@ Vagrant.configure("2") do |config|
         etcd_cluster = etcd_cluster[0..-2]
 
         s.inline = <<-SHELL
+          echo 'Configuing API server and starting services...'
           if [ ! -f /etc/systemd/system/kube-scheduler.service ]; then
             sed -i 's/INTERNAL_IP/10.0.0.5#{i}/g' kube-apiserver.service
             sed -i 's/ETCD_SERVERS/#{etcd_cluster}/g' kube-apiserver.service
@@ -274,9 +300,14 @@ Vagrant.configure("2") do |config|
             sudo systemctl daemon-reload
             sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
             sudo systemctl start kube-apiserver kube-controller-manager kube-scheduler
+            echo 'Giving time for the services to start before moving to the next step'
+            sleep 30s
           fi
         SHELL
       end
+
+      # RBAC for Kubelet Authorization - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/08-bootstrapping-kubernetes-controllers.md
+      controller.vm.provision "shell", path: "scripts/RBAC-for-Kubelet-Authorization.sh"
     end
   end
 
@@ -336,6 +367,22 @@ Vagrant.configure("2") do |config|
       # We copy the configuration files - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/05-kubernetes-configuration-files.md
       worker.vm.provision "file", source: "shared/worker-#{i}.kubeconfig", destination: "~/worker-#{i}.kubeconfig"
       worker.vm.provision "file", source: "shared/kube-proxy.kubeconfig", destination: "~/kube-proxy.kubeconfig"
+
+      # Bootstrapping the Kubernetes Worker Nodes - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      worker.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          if [ ! -f /usr/local/bin/kubelet ]; then
+            wget -q --https-only --timestamping https://github.com/containernetworking/plugins/releases/download/v0.6.0/cni-plugins-amd64-v0.6.0.tgz https://github.com/containerd/cri-containerd/releases/download/v1.0.0-beta.1/cri-containerd-1.0.0-beta.1.linux-amd64.tar.gz https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kubectl https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kube-proxy https://storage.googleapis.com/kubernetes-release/release/v1.9.0/bin/linux/amd64/kubelet
+            sudo apt-get update 
+            sudo apt-get -y install socat
+            sudo mkdir -p /etc/cni/net.d /opt/cni/bin /var/lib/kubelet /var/lib/kube-proxy /var/lib/kubernetes /var/run/kubernetes
+            sudo tar -xvf cni-plugins-amd64-v0.6.0.tgz -C /opt/cni/bin/
+            sudo tar -xvf cri-containerd-1.0.0-beta.1.linux-amd64.tar.gz -C /
+            chmod +x kubectl kube-proxy kubelet
+            sudo mv kubectl kube-proxy kubelet /usr/local/bin/
+          fi
+        SHELL
+      end
   	end
 
   end
