@@ -254,6 +254,29 @@ Vagrant.configure("2") do |config|
           fi
         SHELL
       end
+
+      # We configure kubernates API server - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/08-bootstrapping-kubernetes-controllers.md
+      controller.vm.provision "file", source: "conf/kube-apiserver.service", destination: "~/kube-apiserver.service"
+      controller.vm.provision "file", source: "conf/kube-controller-manager.service", destination: "~/kube-controller-manager.service"
+      controller.vm.provision "file", source: "conf/kube-scheduler.service", destination: "~/kube-scheduler.service"
+      controller.vm.provision "shell" do |s|
+        etcd_cluster=''
+        (1..total_mumber_of_controllers).each do |j|
+          etcd_cluster = etcd_cluster + "https:\\/\\/10.0.0.5#{j}:2379,"
+        end
+        etcd_cluster = etcd_cluster[0..-2]
+
+        s.inline = <<-SHELL
+          if [ ! -f /etc/systemd/system/kube-scheduler.service ]; then
+            sed -i 's/INTERNAL_IP/10.0.0.5#{i}/g' kube-apiserver.service
+            sed -i 's/ETCD_SERVERS/#{etcd_cluster}/g' kube-apiserver.service
+            sudo mv kube-apiserver.service kube-scheduler.service kube-controller-manager.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+            sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
+            sudo systemctl start kube-apiserver kube-controller-manager kube-scheduler
+          fi
+        SHELL
+      end
     end
   end
 
