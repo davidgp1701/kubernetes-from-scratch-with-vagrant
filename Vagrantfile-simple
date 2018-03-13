@@ -1,0 +1,34 @@
+Vagrant.configure("2") do |config|
+
+  total_mumber_of_controllers = 2
+  total_number_of_workers = 2
+
+  public_ip_kubernetes_address = '10.0.0.200'
+
+  # This machine will have the function of client and load balancer
+  config.vm.define "client" do |client|
+    client.vm.box = "ubuntu/xenial64"
+    client.vm.hostname = "client"
+    client.vm.network "private_network", ip: "#{public_ip_kubernetes_address}"
+
+  end
+
+  # For the moment this only supports 1 master node... it needs to be extended to support several master nodes behind a proxy server
+  (1..total_mumber_of_controllers).each do |i|
+  	config.vm.define "controller-#{i}" do |controller|
+    	controller.vm.box = "ubuntu/xenial64"
+    	controller.vm.hostname = "controller-#{i}"
+    	controller.vm.network "private_network", ip: "10.0.0.5#{i}"
+
+    end
+  end
+
+  (1..total_number_of_workers).each do |i|
+  	config.vm.define "worker-#{i}" do |worker|
+    	worker.vm.box = "ubuntu/xenial64"
+    	worker.vm.hostname = "worker-#{i}"
+    	worker.vm.network "private_network", ip: "10.0.0.1#{i}"
+
+    end
+  end
+end
