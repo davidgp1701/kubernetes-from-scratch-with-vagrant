@@ -174,6 +174,21 @@ Vagrant.configure("2") do |config|
         SHELL
     end
 
+    # Configuring the client to access our kubernates cluster with admin rights - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/10-configuring-kubectl.md
+    client.vm.provision "shell" do |s|
+      s.inline = <<-SHELL
+        echo 'Configuring the client to access our kubernates cluster with admin rights'
+        if grep -sq "kubectl config use-context kubernetes-the-hard-way" /home/vagrant/.bashrc; then
+            echo "Admin configuration already added..."
+            exit 0;
+        fi
+        echo 'kubectl config set-cluster kubernetes-the-hard-way --certificate-authority=shared/ca.pem --embed-certs=true --server=https://#{public_ip_kubernetes_address}:6443' >> /home/vagrant/.bashrc
+        echo 'kubectl config set-credentials admin --client-certificate=shared/admin.pem --client-key=shared/admin-key.pem' >> /home/vagrant/.bashrc
+        echo 'kubectl config set-context kubernetes-the-hard-way --cluster=kubernetes-the-hard-way --user=admin' >> /home/vagrant/.bashrc
+        echo 'kubectl config use-context kubernetes-the-hard-way' >> /home/vagrant/.bashrc
+      SHELL
+    end
+
   end
 
   # For the moment this only supports 1 master node... it needs to be extended to support several master nodes behind a proxy server
