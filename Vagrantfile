@@ -420,9 +420,37 @@ Vagrant.configure("2") do |config|
       end
 
       # Configure the Kubelet - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      worker.vm.provision "file", source: "conf/kubelet.service", destination: "~/kubelet.service"
+      worker.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo 'Configuring Kubelet'
+          if [ ! -f /var/lib/kubelet/worker-#{i}-key.pem ]; then
+            sudo mv worker-#{i}-key.pem worker-#{i}.pem /var/lib/kubelet/
+            sudo mv worker-#{i}.kubeconfig /var/lib/kubelet/kubeconfig
+            sudo mv ca.pem /var/lib/kubernetes/
+            sed -i 's/POD_CIDR/--pod-cidr=10.2#{i}.0.0\\/16/g' kubelet.service
+            sed -i 's/TLS_CERT/--tls-cert-file=\\/var\\/lib\\/kubelet\\/worker-#{i}.pem/g' kubelet.service
+            sed -i 's/TLS_PRIVATE/--tls-private-key-file=\\/var\\/lib\\/kubelet\\/worker-#{i}-key.pem/g' kubelet.service
+          fi
+        SHELL
+      end
+
+      # Configure the Kubernetes Proxy - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      worker.vm.provision "file", source: "conf/kube-proxy.service", destination: "~/kube-proxy.service"
+
+      # Start the Worker Services - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      worker.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo 'Start the Worker Services'
+          if [ ! -f /etc/systemd/system/kubelet.service ]; then
+            sudo mv kubelet.service kube-proxy.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+            sudo systemctl enable containerd cri-containerd kubelet kube-proxy
+            sudo systemctl start containerd cri-containerd kubelet kube-proxy
+          fi
+        SHELL
+      end
 
   	end
-
   end
-
 end
