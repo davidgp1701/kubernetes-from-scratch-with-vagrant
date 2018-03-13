@@ -114,7 +114,7 @@ Vagrant.configure("2") do |config|
       s.inline = <<-SHELL
         echo "Configuring API certificate files"
         if [ ! -f /home/vagrant/shared/kubernetes-key.pem ]; then
-          cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=#{controllers_ips},#{public_ip_kubernetes_address},127.0.0.1,kubernetes.default -profile=kubernetes kubernetes-csr.json | cfssljson -bare kubernetes
+          cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -hostname=10.32.0.1,#{controllers_ips},#{public_ip_kubernetes_address},127.0.0.1,kubernetes.default -profile=kubernetes kubernetes-csr.json | cfssljson -bare kubernetes
           cp kubernetes-key.pem shared
           cp kubernetes.pem shared 
         fi

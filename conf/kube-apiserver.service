@@ -5,7 +5,7 @@ Documentation=https://github.com/kubernetes/kubernetes
 [Service]
 ExecStart=/usr/local/bin/kube-apiserver \
   --admission-control=Initializers,NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
-  --advertise-address=10.0.0.2 \
+  --advertise-address=INTERNAL_IP \
   --allow-privileged=true \
   --apiserver-count=3 \
   --audit-log-maxage=30 \
