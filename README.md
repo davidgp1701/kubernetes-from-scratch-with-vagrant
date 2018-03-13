@@ -6,7 +6,11 @@ This is not code to run on production environment, but it can help to understand
 
 ## Prerequisites
 
-You need to have [Vagrant](https://www.vagrantup.com/) installed in your machine.
+You need to have [Vagrant](https://www.vagrantup.com/) installed in your machine. Also, once [Vagrant](https://www.vagrantup.com/) is intalled you need to install [Vagrant Triggers](https://github.com/emyl/vagrant-triggers):
+
+```
+vagrant plugin install vagrant-triggers
+```
 
 Also, you need to create the following folders:
 

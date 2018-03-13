@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sleep 60s
+
 cat <<EOF | kubectl apply -f -
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding

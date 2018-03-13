@@ -300,21 +300,26 @@ Vagrant.configure("2") do |config|
             sudo systemctl daemon-reload
             sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
             sudo systemctl start kube-apiserver kube-controller-manager kube-scheduler
-            echo 'Giving time for the services to start before moving to the next step'
-            sleep 30s
           fi
         SHELL
       end
 
       # RBAC for Kubelet Authorization - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/08-bootstrapping-kubernetes-controllers.md
-      controller.vm.provision "shell", path: "scripts/RBAC-for-Kubelet-Authorization.sh"
+      controller.vm.provision "file", source: "scripts/RBAC-for-Kubelet-Authorization.sh", destination: "~/RBAC-for-Kubelet-Authorization.sh"
+      controller.trigger.after :up do
+        if(i == total_mumber_of_controllers) then
+          info "last machine is up, running RBAC script to Authorizaed kubelet"
+          run_remote  "bash RBAC-for-Kubelet-Authorization.sh"
+        end   
+      end
+  
     end
   end
 
   (1..total_number_of_workers).each do |i|
   	config.vm.define "worker-#{i}" do |worker|
     	worker.vm.box = "ubuntu/xenial64"
-    	worker.vm.hostname = "server#{i}"
+    	worker.vm.hostname = "worker-#{i}"
     	worker.vm.network "private_network", ip: "10.0.0.1#{i}"
 
       # We add the key so the client node can access master and worker nodoes
@@ -383,6 +388,39 @@ Vagrant.configure("2") do |config|
           fi
         SHELL
       end
+
+      # Configuring the pod-cdir network - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      # We are creating a network of ranges 10.2#{i}.0.0/16 per worker node, the gw for that network will be 10.0.0.1{i}
+      (1..total_number_of_workers).each do |j|
+        if j != i
+          network_range = "10.2#{j}.0.0/16"
+          worker.vm.provision "shell" do |s|
+            s.inline = <<-SHELL
+              echo 'Configuring the network routes between nodes'
+              EXIST=`ip route show #{network_range} | wc -l`
+              if [ $EXIST -eq 0 ]; then
+                route add -net #{network_range} gw 10.0.0.1#{i}
+              fi
+            SHELL
+          end
+        end
+      end
+
+      # We create the network bridge - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+      worker.vm.provision "file", source: "conf/10-bridge.conf", destination: "~/10-bridge.conf"
+      worker.vm.provision "file", source: "conf/99-loopback.conf", destination: "~/99-loopback.conf"
+      worker.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo 'Configuring the network bridge'
+          if [ ! -f /etc/cni/net.d/10-bridge.conf ]; then
+            sed -i 's/SUBNET/"10.2#{i}.0.0\\/16"/g' 10-bridge.conf
+            sudo mv 10-bridge.conf 99-loopback.conf /etc/cni/net.d/
+          fi
+        SHELL
+      end
+
+      # Configure the Kubelet - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
+
   	end
 
   end
