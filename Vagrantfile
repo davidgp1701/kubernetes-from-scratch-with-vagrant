@@ -328,6 +328,7 @@ Vagrant.configure("2") do |config|
           if [ ! -f /etc/systemd/system/kube-scheduler.service ]; then
             sed -i 's/INTERNAL_IP/10.0.0.5#{i}/g' kube-apiserver.service
             sed -i 's/ETCD_SERVERS/#{etcd_cluster}/g' kube-apiserver.service
+            sed -i 's/NUMBER_OF_SERVERS/#{total_mumber_of_controllers}/g' kube-apiserver.service
             sudo mv kube-apiserver.service kube-scheduler.service kube-controller-manager.service /etc/systemd/system/
             sudo systemctl daemon-reload
             sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
