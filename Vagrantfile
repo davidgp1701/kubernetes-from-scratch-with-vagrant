@@ -19,6 +19,7 @@ Vagrant.configure("2") do |config|
     client.vm.box = "ubuntu/xenial64"
     client.vm.hostname = "client"
     client.vm.network "private_network", ip: "#{public_ip_kubernetes_address}"
+    client_vm = client
 
     # We share the shared folder
     client.vm.synced_folder "shared/", "/home/vagrant/shared"
@@ -189,6 +190,22 @@ Vagrant.configure("2") do |config|
       SHELL
     end
 
+
+    (1..total_number_of_workers).each do |j|
+      network_range = "10.2#{j}.0.0/16"
+      client.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo 'Configuring the network routes between nodes'
+          EXIST=`ip route show #{network_range} | wc -l`
+          if [ $EXIST -eq 0 ]; then
+             route add -net #{network_range} gw 10.0.0.1#{j}
+          fi
+        SHELL
+      end
+    end
+
+    # Preparing the Kube DNS config file - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/12-dns-addon.md
+    client.vm.provision "file", source: "conf/kube-dns.yaml", destination: "~/kube-dns.yaml"
   end
 
   # For the moment this only supports 1 master node... it needs to be extended to support several master nodes behind a proxy server
@@ -319,6 +336,19 @@ Vagrant.configure("2") do |config|
         SHELL
       end
 
+      (1..total_number_of_workers).each do |j|
+        network_range = "10.2#{j}.0.0/16"
+        controller.vm.provision "shell" do |s|
+          s.inline = <<-SHELL
+            echo 'Configuring the network routes between nodes'
+            EXIST=`ip route show #{network_range} | wc -l`
+            if [ $EXIST -eq 0 ]; then
+              route add -net #{network_range} gw 10.0.0.1#{j}
+            fi
+          SHELL
+        end
+      end
+
       # RBAC for Kubelet Authorization - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/08-bootstrapping-kubernetes-controllers.md
       controller.vm.provision "file", source: "scripts/RBAC-for-Kubelet-Authorization.sh", destination: "~/RBAC-for-Kubelet-Authorization.sh"
       controller.trigger.after :up do
@@ -414,7 +444,7 @@ Vagrant.configure("2") do |config|
               echo 'Configuring the network routes between nodes'
               EXIST=`ip route show #{network_range} | wc -l`
               if [ $EXIST -eq 0 ]; then
-                route add -net #{network_range} gw 10.0.0.1#{i}
+                route add -net #{network_range} gw 10.0.0.1#{j}
               fi
             SHELL
           end
@@ -452,6 +482,14 @@ Vagrant.configure("2") do |config|
 
       # Configure the Kubernetes Proxy - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
       worker.vm.provision "file", source: "conf/kube-proxy.service", destination: "~/kube-proxy.service"
+      worker.vm.provision "shell" do |s|
+        s.inline = <<-SHELL
+          echo 'Configuring kube-proxy'
+          if [ ! -f /var/lib/kube-proxy/kubeconfig/kube-proxy.kubeconfig ]; then
+            sudo mv kube-proxy.kubeconfig /var/lib/kube-proxy/kubeconfig
+          fi
+        SHELL
+      end
 
       # Start the Worker Services - https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/09-bootstrapping-kubernetes-workers.md
       worker.vm.provision "shell" do |s|
@@ -467,5 +505,6 @@ Vagrant.configure("2") do |config|
       end
 
   	end
+
   end
 end

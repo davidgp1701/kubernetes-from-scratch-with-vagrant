@@ -43,3 +43,15 @@ You can ssh to any of this VMs using the hostname, for example:
 ```
 vagrant ssh controller-3
 ```
+
+## Post Configuration
+
+Once the cluster is running, we need to install our DNS pod, as indicated here: [The DNS Cluster Add-on](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/12-dns-addon.md):
+
+```
+$ kubectl create -f kube-dns.yaml 
+service "kube-dns" created
+serviceaccount "kube-dns" created
+configmap "kube-dns" created
+deployment "kube-dns" created
+```
