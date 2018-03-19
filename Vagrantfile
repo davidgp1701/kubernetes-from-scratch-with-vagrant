@@ -439,7 +439,7 @@ Vagrant.configure("2") do |config|
       # We are creating a network of ranges 10.2#{i}.0.0/16 per worker node, the gw for that network will be 10.0.0.1{i}
       (1..total_number_of_workers).each do |j|
         if j != i
-          network_range = "10.2#{j}.0.0/16"
+          network_range = "10.200.#{j}.0/24"
           worker.vm.provision "shell" do |s|
             s.inline = <<-SHELL
               echo 'Configuring the network routes between nodes'
@@ -459,7 +459,7 @@ Vagrant.configure("2") do |config|
         s.inline = <<-SHELL
           echo 'Configuring the network bridge'
           if [ ! -f /etc/cni/net.d/10-bridge.conf ]; then
-            sed -i 's/SUBNET/"10.2#{i}.0.0\\/16"/g' 10-bridge.conf
+            sed -i 's/SUBNET/"10.200.#{i}.0\\/24"/g' 10-bridge.conf
             sudo mv 10-bridge.conf 99-loopback.conf /etc/cni/net.d/
           fi
         SHELL
@@ -474,7 +474,7 @@ Vagrant.configure("2") do |config|
             sudo mv worker-#{i}-key.pem worker-#{i}.pem /var/lib/kubelet/
             sudo mv worker-#{i}.kubeconfig /var/lib/kubelet/kubeconfig
             sudo mv ca.pem /var/lib/kubernetes/
-            sed -i 's/POD_CIDR/--pod-cidr=10.2#{i}.0.0\\/16/g' kubelet.service
+            sed -i 's/POD_CIDR/--pod-cidr=10.200.#{i}.0\\/24/g' kubelet.service
             sed -i 's/TLS_CERT/--tls-cert-file=\\/var\\/lib\\/kubelet\\/worker-#{i}.pem/g' kubelet.service
             sed -i 's/TLS_PRIVATE/--tls-private-key-file=\\/var\\/lib\\/kubelet\\/worker-#{i}-key.pem/g' kubelet.service
           fi
