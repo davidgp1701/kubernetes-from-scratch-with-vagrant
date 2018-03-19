@@ -1,8 +1,8 @@
 [Unit]
 Description=Kubernetes Kubelet
 Documentation=https://github.com/kubernetes/kubernetes
-After=cri-containerd.service
-Requires=cri-containerd.service
+After=crio.service
+Requires=crio.service
 
 [Service]
 ExecStart=/usr/local/bin/kubelet \
@@ -10,17 +10,18 @@ ExecStart=/usr/local/bin/kubelet \
   --anonymous-auth=false \
   --authorization-mode=Webhook \
   --client-ca-file=/var/lib/kubernetes/ca.pem \
-  --cloud-provider= \
   --cluster-dns=10.32.0.10 \
   --cluster-domain=cluster.local \
   --container-runtime=remote \
-  --container-runtime-endpoint=unix:///var/run/cri-containerd.sock \
+  --container-runtime-endpoint=unix:///var/run/crio/crio.sock \
   --image-pull-progress-deadline=2m \
+  --image-service-endpoint=unix:///var/run/crio/crio.sock \
+  --require-kubeconfig \
   --kubeconfig=/var/lib/kubelet/kubeconfig \
   --network-plugin=cni \
   POD_CIDR \
   --register-node=true \
-  --runtime-request-timeout=15m \
+  --runtime-request-timeout=10m \
   TLS_CERT \
   TLS_PRIVATE \
   --v=2

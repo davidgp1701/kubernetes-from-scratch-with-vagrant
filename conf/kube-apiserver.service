@@ -37,6 +37,3 @@ ExecStart=/usr/local/bin/kube-apiserver \
   --v=2
 Restart=on-failure
 RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
